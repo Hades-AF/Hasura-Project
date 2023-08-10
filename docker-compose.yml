@@ -1,0 +1,98 @@
+version: "3.6"
+
+services:
+  # Hasura GraphQL Engine
+  hasura:
+    image: hasura/graphql-engine:v2.29.0
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Postgres Database to store Hasura Metadata.
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@pg_hasura:5432/postgres
+      # Adds Above Hasura DB as a Data Source.
+      PG_DATABASE_URL: postgres://postgres:postgrespassword@pg_hasura:5432/postgres
+      # Enable Console.
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      # Enable Debugging Mode.
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      # Enable Logging
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      # Admin Secret 
+      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
+      HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+    depends_on:
+      pg_hasura:
+        condition: service_started
+      data-connector-agent:
+        condition: service_healthy
+
+  # PostgreSQL Server for Hasura Engine
+  pg_hasura:
+    image: postgres:15
+    restart: always
+    volumes:
+      - pg_hausra_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+
+  # # Athena Health Check Monitoring
+  data-connector-agent:
+    image: hasura/graphql-data-connector:v2.29.0
+    restart: always
+    ports:
+      - 8081:8080
+    environment:
+      QUARKUS_LOG_LEVEL: ERROR
+      QUARKUS_OPENTELEMETRY_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+
+  # Reverse Proxy Setup
+  caddy:
+    image: caddy/caddy
+    depends_on:
+      - "hasura"
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_certs:/root/.caddy
+
+  # Keycloak
+  keycloak:
+    image: jboss/keycloak:latest
+    ports:
+      - "8082:8080"
+    depends_on:
+      pg_keycloak:
+        condition: service_started
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: postgres
+      DB_ADDR: pg_keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+
+  # PostgreSQL Server for Keycloak
+  pg_keycloak:
+      image: postgres:12
+      volumes:
+        - pg_keycloak_data:/var/lib/postgresql/data
+      environment:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: password
+
+volumes:
+  pg_hausra_data:
+  pg_keycloak_data:
+  caddy_certs:
+
