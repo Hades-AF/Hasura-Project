@@ -1,1 +1,1 @@
-# hasura-project
+# Hasura-Project
