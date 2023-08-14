@@ -3,10 +3,10 @@ version: "3.6"
 services:
   # Hasura GraphQL Engine
   hasura:
-    image: hasura/graphql-engine:v2.29.0
+    image: hasura/graphql-engine:v2.31.0
     restart: always
     ports:
-      - "8080:8080"
+     - "8080:8080"
     environment:
       # Postgres Database to store Hasura Metadata.
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@pg_hasura:5432/postgres
@@ -36,9 +36,9 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
 
-  # # Athena Health Check Monitoring
+  # Athena Health Check Monitoring
   data-connector-agent:
-    image: hasura/graphql-data-connector:v2.29.0
+    image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
       - 8081:8080
